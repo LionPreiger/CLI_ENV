@@ -26,6 +26,63 @@
             margin-bottom: 30px;
             padding-bottom: 20px;
             border-bottom: 2px solid #eee;
+            position: relative;
+        }
+        .minimize-btn {
+            position: absolute;
+            top: 10px;
+            right: 20px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            cursor: pointer;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 10px rgba(0,123,255,0.3);
+        }
+        .minimize-btn:hover {
+            background: #0056b3;
+            transform: scale(1.1);
+        }
+        .minimizable-section {
+            transition: all 0.3s ease;
+            overflow: hidden;
+        }
+        .minimizable-section.minimized {
+            max-height: 0;
+            opacity: 0;
+            margin: 0;
+            padding: 0;
+        }
+        .header-content {
+            transition: all 0.3s ease;
+            overflow: hidden;
+        }
+        .header-content.minimized {
+            max-height: 0;
+            opacity: 0;
+            margin: 0;
+            padding: 0;
+        }
+        .minimized-indicator {
+            display: none;
+            text-align: center;
+            padding: 10px;
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            color: #6c757d;
+            font-style: italic;
+        }
+        .minimized-indicator.show {
+            display: block;
         }
         .status {
             padding: 15px;
@@ -314,30 +371,47 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>🔒 Remote Command Executor - HTTPS/WSS Secure</h1>
-            <p>Secure remote command execution with encrypted communication</p>
+            <div class="header-content" id="headerContent">
+                <h1>🔒 Remote Command Executor - HTTPS/WSS Secure</h1>
+                <p>Secure remote command execution with encrypted communication</p>
+            </div>
+            <button class="minimize-btn" onclick="toggleMinimize()" title="Minimize/Restore sections">
+                <span id="minimizeIcon">−</span>
+            </button>
         </div>
         
-        <div id="statusDiv" class="status disconnected">
-            Disconnected - Checking connection...
+        <div class="minimized-indicator" id="minimizedIndicator">
+            Sections minimized - Click the minimize button to restore
         </div>
         
-        <div id="systemInfo" style="display: none;">
-            <h3>Target System Information:</h3>
-            <div id="sysInfoContent" class="output-box"></div>
+        <div class="minimizable-section" id="statusSection">
+            <div id="statusDiv" class="status disconnected">
+                Disconnected - Checking connection...
+            </div>
+        </div>
+        
+        <div class="minimizable-section" id="systemInfoSection">
+            <div id="systemInfo" style="display: none;">
+                <h3>Target System Information:</h3>
+                <div id="sysInfoContent" class="output-box"></div>
+            </div>
+        </div>
+        
+        <div class="minimizable-section" id="quickCommandsSection">
+            <div class="command-section">
+                <h3>Quick Commands:</h3>
+                <div class="quick-commands">
+                    <div class="quick-cmd" onclick="clearOutput()">Clear Terminal</div>
+                    <div class="quick-cmd" onclick="setCommand('python3 --version')">python3 --version</div>
+                    <div class="quick-cmd" onclick="setCommand('ls -la')">ls -la</div>
+                    <div class="quick-cmd" onclick="setCommand('whoami')">whoami</div>
+                    <div class="quick-cmd" onclick="setCommand('ping -c 5 google.com')">ping test</div>
+                    <div class="quick-cmd" onclick="setCommand('echo streaming demo')">streaming demo</div>
+                </div>
+            </div>
         </div>
         
         <div class="command-section">
-            <h3>Quick Commands:</h3>
-            <div class="quick-commands">
-                <div class="quick-cmd" onclick="clearOutput()">Clear Terminal</div>
-                <div class="quick-cmd" onclick="setCommand('python3 --version')">python3 --version</div>
-                <div class="quick-cmd" onclick="setCommand('ls -la')">ls -la</div>
-                <div class="quick-cmd" onclick="setCommand('whoami')">whoami</div>
-                <div class="quick-cmd" onclick="setCommand('ping -c 5 google.com')">ping test</div>
-                <div class="quick-cmd" onclick="setCommand('echo streaming demo')">streaming demo</div>
-            </div>
-            
             <h3>Execute Command:</h3>
             <div class="command-input">
                 <input type="text" id="commandInput" placeholder="Enter CLI command..." 
@@ -384,6 +458,34 @@
         let socket = null;
         let commandHistory = [];
         let serverBusy = false;
+        let isMinimized = false;
+        
+        // Toggle minimize functionality
+        function toggleMinimize() {
+            isMinimized = !isMinimized;
+            const minimizableElements = document.querySelectorAll('.minimizable-section');
+            const minimizedIndicator = document.getElementById('minimizedIndicator');
+            const headerContent = document.getElementById('headerContent');
+            const minimizeIcon = document.getElementById('minimizeIcon');
+            
+            minimizableElements.forEach(element => {
+                if (isMinimized) {
+                    element.classList.add('minimized');
+                } else {
+                    element.classList.remove('minimized');
+                }
+            });
+            
+            if (isMinimized) {
+                headerContent.classList.add('minimized');
+                minimizeIcon.textContent = '+';
+                // Don't show the minimized indicator
+            } else {
+                headerContent.classList.remove('minimized');
+                minimizeIcon.textContent = '−';
+                // Don't show the minimized indicator
+            }
+        }
         
         // Initialize Socket.IO connection
         function initializeSocket() {
