@@ -371,12 +371,12 @@
 <body>
     <div class="container">
         <div class="header">
-            <div class="header-content" id="headerContent">
+            <div class="header-content minimized" id="headerContent">
                 <h1>🔒 Remote Command Executor - HTTPS/WSS Secure</h1>
                 <p>Secure remote command execution with encrypted communication</p>
             </div>
             <button class="minimize-btn" onclick="toggleMinimize()" title="Minimize/Restore sections">
-                <span id="minimizeIcon">−</span>
+                <span id="minimizeIcon">+</span>
             </button>
         </div>
         
@@ -384,20 +384,20 @@
             Sections minimized - Click the minimize button to restore
         </div>
         
-        <div class="minimizable-section" id="statusSection">
+        <div class="minimizable-section minimized" id="statusSection">
             <div id="statusDiv" class="status disconnected">
                 Disconnected - Checking connection...
             </div>
         </div>
         
-        <div class="minimizable-section" id="systemInfoSection">
+        <div class="minimizable-section minimized" id="systemInfoSection">
             <div id="systemInfo" style="display: none;">
                 <h3>Target System Information:</h3>
                 <div id="sysInfoContent" class="output-box"></div>
             </div>
         </div>
         
-        <div class="minimizable-section" id="quickCommandsSection">
+        <div class="minimizable-section minimized" id="quickCommandsSection">
             <div class="command-section">
                 <h3>Quick Commands:</h3>
                 <div class="quick-commands">
@@ -458,7 +458,7 @@
         let socket = null;
         let commandHistory = [];
         let serverBusy = false;
-        let isMinimized = false;
+        let isMinimized = true;  // Start minimized by default
         
         // Toggle minimize functionality
         function toggleMinimize() {
