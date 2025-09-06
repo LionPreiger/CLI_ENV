@@ -432,16 +432,16 @@
         <div class="output-section">
             <h3>Live Output:</h3>
             <div id="outputContainer" class="output-container">
-                <div class="output-line info">Remote Terminal - Ready to execute commands...</div>
+                <!-- <div class="output-line info">Remote Terminal - Ready to execute commands...</div>
                 <div class="output-line info">Commands and outputs will be preserved like in a real terminal.</div>
-                <div class="output-line info">Use 'Clear Terminal' button above to reset if needed.</div>
+                <div class="output-line info">Use 'Clear Terminal' button above to reset if needed.</div> -->
             </div>
             
             <!-- Interactive Input Section -->
             <div id="inputSection" class="input-section" style="display: none;">
                 <h3>Interactive Input Required:</h3>
                 <div class="input-prompt">
-                    <input type="password" id="interactiveInput" placeholder="Enter your input..." 
+                    <input type="text" id="interactiveInput" placeholder="Enter your input..." 
                            onkeypress="if(event.key==='Enter') sendInput()">
                     <div class="input-controls">
                         <button class="btn btn-primary" onclick="sendInput()">Send</button>
@@ -458,6 +458,7 @@
         let socket = null;
         let commandHistory = [];
         let serverBusy = false;
+        let isPasswordInput = false; // Track if current input is for password
         let isMinimized = true;  // Start minimized by default
         
         // Toggle minimize functionality
@@ -835,6 +836,15 @@
                     break;
                     
                 case 'input_request':
+                    // Check if this is a password prompt
+                    const prompt = data.content.toLowerCase();
+                    isPasswordInput = prompt.includes('password') || 
+                                    prompt.includes('[sudo]') || 
+                                    prompt.includes('login:') ||
+                                    prompt.includes('enter password') ||
+                                    prompt.includes('sudo password') ||
+                                    prompt.endsWith(': ');
+                    
                     // Don't add the input prompt again as it's already shown in normal output
                     showInputPrompt();
                     break;
@@ -913,13 +923,25 @@
         }
         
         function showInputPrompt() {
+            const inputField = document.getElementById('interactiveInput');
+            
+            // Set input type based on whether it's a password prompt
+            if (isPasswordInput) {
+                inputField.type = 'password';
+                inputField.placeholder = 'Enter password...';
+            } else {
+                inputField.type = 'text';
+                inputField.placeholder = 'Enter your input...';
+            }
+            
             document.getElementById('inputSection').style.display = 'block';
-            document.getElementById('interactiveInput').focus();
+            inputField.focus();
         }
         
         function hideInputPrompt() {
             document.getElementById('inputSection').style.display = 'none';
             document.getElementById('interactiveInput').value = '';
+            isPasswordInput = false; // Reset password flag
         }
         
         async function sendInput() {
@@ -936,7 +958,13 @@
             }
             
             // Display the input immediately for better user experience
-            addOutputLine(`${inputText}`, 'normal');
+            if (isPasswordInput) {
+                // Show dots instead of actual password
+                const maskedInput = '*'.repeat(inputText.length);
+                addOutputLine(`${maskedInput}`, 'normal');
+            } else {
+                addOutputLine(`${inputText}`, 'normal');
+            }
             hideInputPrompt();
             
             try {
