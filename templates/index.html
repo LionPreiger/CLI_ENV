@@ -472,13 +472,13 @@
                 } else {
                     connected = false;
                     document.getElementById('statusDiv').className = 'status disconnected';
-                    document.getElementById('statusDiv').innerHTML = 'Disconnected - ' + (data.error || 'Unknown error') + '<br>Make sure the server.py is running on the target machine.';
+                    document.getElementById('statusDiv').innerHTML = 'Disconnected - ' + (data.error || 'Unknown error') + '<br>Make sure the VM_client.py is running on the target machine.';
                     document.getElementById('executeBtn').disabled = true;
                 }
             } catch (error) {
                 connected = false;
                 document.getElementById('statusDiv').className = 'status disconnected';
-                document.getElementById('statusDiv').innerHTML = 'Client server not running<br>Make sure this client.py is running properly.';
+                document.getElementById('statusDiv').innerHTML = 'Client server not running<br>Make sure this Host_server.py is running properly.';
                 document.getElementById('executeBtn').disabled = true;
             }
         }

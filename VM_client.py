@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Remote Command Server with WebSocket Support
-Install on target PC and run as: python server.py
+Install on target PC and run as: python VM_client.py
 Requirements: pip install flask flask-socketio
 """
 

@@ -26,7 +26,7 @@ pip install -r requirements.txt
 ### 2. Start the Server (Target PC)
 
 ```bash
-python server.py
+python VM_client.py
 ```
 
 The server will:
@@ -38,7 +38,7 @@ The server will:
 ### 3. Start the Client (Control PC)
 
 ```bash
-python client.py
+python Host_server.py
 ```
 
 The client will:
@@ -70,8 +70,8 @@ The server automatically generates self-signed SSL certificates on first run:
 
 ## 📁 Files
 
-- `server.py` - HTTPS/WSS server for target PC
-- `client.py` - HTTPS client and web interface
+- `VM_client.py` - HTTPS/WSS server for target PC
+- `Host_server.py` - HTTPS client and web interface
 - `templates/index.html` - Secure web interface
 - `requirements.txt` - Python dependencies
 - `setup.py` - Installation script
