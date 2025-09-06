@@ -835,7 +835,7 @@
                     break;
                     
                 case 'input_request':
-                    addOutputLine(`${data.content}`, 'info');
+                    // Don't add the input prompt again as it's already shown in normal output
                     showInputPrompt();
                     break;
                     
@@ -935,6 +935,10 @@
                 return;
             }
             
+            // Display the input immediately for better user experience
+            addOutputLine(`${inputText}`, 'normal');
+            hideInputPrompt();
+            
             try {
                 const response = await fetch(`/api/input/${currentProcessId}`, {
                     method: 'POST',
@@ -946,10 +950,7 @@
                 
                 const result = await response.json();
                 
-                if (result.success) {
-                    addOutputLine(`> ${inputText}`, 'info');
-                    hideInputPrompt();
-                } else {
+                if (!result.success) {
                     addOutputLine(`Error sending input: ${result.error}`, 'error');
                 }
                 
