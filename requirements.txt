@@ -1,0 +1,16 @@
+# Remote Command Server/Client Dependencies
+# Core web framework and WebSocket support
+flask>=2.0.0
+flask-socketio>=5.0.0
+requests>=2.25.0
+python-socketio>=5.0.0
+
+# HTTPS/SSL support and certificate generation
+cryptography>=3.4.0
+urllib3>=1.26.0
+
+# Additional dependencies for WebSocket client
+eventlet>=0.31.0
+
+# Optional: For better performance
+gunicorn>=20.0.0

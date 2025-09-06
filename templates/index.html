@@ -1,0 +1,903 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Remote Command Executor - HTTPS/WSS Secure</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+        .container {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #eee;
+        }
+        .status {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-weight: bold;
+        }
+        .status.connected {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .status.disconnected {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .command-section {
+            margin-bottom: 30px;
+        }
+        .command-input {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        #commandInput {
+            flex: 1;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+        }
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 14px;
+        }
+        .btn-primary {
+            background: #007bff;
+            color: white;
+        }
+        .btn-primary:hover {
+            background: #0056b3;
+        }
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+        .btn-danger:hover {
+            background: #c82333;
+        }
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+        .controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        .output-section {
+            margin-top: 20px;
+        }
+        .output-container {
+            background: #1e1e1e;
+            color: #fff;
+            border-radius: 6px;
+            padding: 15px;
+            margin-bottom: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            height: 400px;
+            overflow-y: auto;
+            border: 1px solid #444;
+        }
+        .output-line {
+            margin-bottom: 5px;
+            line-height: 1.4;
+        }
+        .output-line.error {
+            color: #ff6b6b;
+        }
+        .output-line.info {
+            color: #74c0fc;
+        }
+        .output-line.success {
+            color: #51cf66;
+        }
+        .status-indicator {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+        .status-running {
+            background: #fff3cd;
+            color: #856404;
+        }
+        .status-complete {
+            background: #d4edda;
+            color: #155724;
+        }
+        .status-stopped {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        .quick-commands {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .quick-cmd {
+            padding: 8px 16px;
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+        }
+        .quick-cmd:hover {
+            background: #e9ecef;
+        }
+        .command-history {
+            max-height: 150px;
+            overflow-y: auto;
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            padding: 10px;
+            margin-top: 10px;
+        }
+        .history-item {
+            cursor: pointer;
+            padding: 5px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+        }
+        .history-item:hover {
+            background: #e9ecef;
+        }
+        
+        /* Input Section Styles */
+        .input-section {
+            margin-top: 20px;
+            padding: 15px;
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 8px;
+            animation: slideDown 0.3s ease;
+        }
+        
+        .input-prompt {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-top: 10px;
+        }
+        
+        #interactiveInput {
+            flex: 1;
+            padding: 10px;
+            border: 2px solid #f39c12;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            background: #fffdf0;
+        }
+        
+        .input-controls {
+            display: flex;
+            gap: 5px;
+        }
+        
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            animation: fadeIn 0.3s ease;
+        }
+        
+        .modal-content {
+            background-color: #fefefe;
+            margin: 15% auto;
+            padding: 20px;
+            border: none;
+            border-radius: 10px;
+            width: 300px;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            animation: slideIn 0.3s ease;
+        }
+        
+        .modal-header {
+            margin-bottom: 15px;
+        }
+        
+        .modal-header h3 {
+            margin: 0;
+            color: #d63384;
+            font-size: 18px;
+        }
+        
+        .modal-body {
+            margin-bottom: 20px;
+            color: #666;
+            line-height: 1.5;
+        }
+        
+        .modal-footer {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+        }
+        
+        .modal-btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            min-width: 80px;
+            transition: all 0.2s ease;
+        }
+        
+        .modal-btn-confirm {
+            background-color: #dc3545;
+            color: white;
+        }
+        
+        .modal-btn-confirm:hover {
+            background-color: #c82333;
+        }
+        
+        .modal-btn-cancel {
+            background-color: #6c757d;
+            color: white;
+        }
+        
+        .modal-btn-cancel:hover {
+            background-color: #5a6268;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        @keyframes slideIn {
+            from { 
+                opacity: 0;
+                transform: translateY(-50px);
+            }
+            to { 
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔒 Remote Command Executor - HTTPS/WSS Secure</h1>
+            <p>Secure remote command execution with encrypted communication</p>
+        </div>
+        
+        <div id="statusDiv" class="status disconnected">
+            Disconnected - Checking connection...
+        </div>
+        
+        <div id="systemInfo" style="display: none;">
+            <h3>Target System Information:</h3>
+            <div id="sysInfoContent" class="output-box"></div>
+        </div>
+        
+        <div class="command-section">
+            <h3>Quick Commands:</h3>
+            <div class="quick-commands">
+                <div class="quick-cmd" onclick="clearOutput()">Clear Terminal</div>
+                <div class="quick-cmd" onclick="setCommand('python3 --version')">python3 --version</div>
+                <div class="quick-cmd" onclick="setCommand('ls -la')">ls -la</div>
+                <div class="quick-cmd" onclick="setCommand('whoami')">whoami</div>
+                <div class="quick-cmd" onclick="setCommand('ping -c 5 google.com')">ping test</div>
+                <div class="quick-cmd" onclick="setCommand('echo streaming demo')">streaming demo</div>
+            </div>
+            
+            <h3>Execute Command:</h3>
+            <div class="command-input">
+                <input type="text" id="commandInput" placeholder="Enter CLI command..." 
+                       onkeypress="if(event.key==='Enter') handleEnterKey()">
+                <div class="controls">
+                    <button id="executeBtn" class="btn btn-primary" onclick="executeCommand()">Execute</button>
+                    <button id="stopBtn" class="btn btn-danger" onclick="stopCommand()" disabled>Stop</button>
+                    <span id="commandStatus"></span>
+                </div>
+            </div>
+            
+            <div class="command-history" id="commandHistory" style="display: none;">
+                <h4>Command History:</h4>
+                <div id="historyList"></div>
+            </div>
+        </div>
+        
+        <div class="output-section">
+            <h3>Live Output:</h3>
+            <div id="outputContainer" class="output-container">
+                <div class="output-line info">Remote Terminal - Ready to execute commands...</div>
+                <div class="output-line info">Commands and outputs will be preserved like in a real terminal.</div>
+                <div class="output-line info">Use 'Clear Terminal' button above to reset if needed.</div>
+            </div>
+            
+            <!-- Interactive Input Section -->
+            <div id="inputSection" class="input-section" style="display: none;">
+                <h3>Interactive Input Required:</h3>
+                <div class="input-prompt">
+                    <input type="password" id="interactiveInput" placeholder="Enter your input..." 
+                           onkeypress="if(event.key==='Enter') sendInput()">
+                    <div class="input-controls">
+                        <button class="btn btn-primary" onclick="sendInput()">Send</button>
+                        <button class="btn btn-secondary" onclick="hideInputPrompt()">Cancel</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let connected = false;
+        let currentProcessId = null;
+        let socket = null;
+        let commandHistory = [];
+        let serverBusy = false;
+        
+        // Initialize Socket.IO connection
+        function initializeSocket() {
+            if (!connected) return;
+            
+            try {
+                // Connect directly to the target server, not localhost
+                const targetUrl = `http://${window.location.hostname}:${window.location.port}/api/target_info`;
+                
+                fetch(targetUrl)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.target_host && data.target_port) {
+                            // Use the protocol information from the server
+                            const protocol = data.protocol || (data.use_https ? 'wss' : 'ws');
+                            const socketUrl = `${data.use_https ? 'https' : 'http'}://${data.target_host}:${data.target_port}`;
+                            
+                            console.log('Connecting WebSocket to:', socketUrl);
+                            console.log('Using protocol:', protocol);
+                            
+                            // Configure socket.io options for HTTPS/WSS
+                            const socketOptions = {
+                                transports: ['websocket', 'polling'],
+                                upgrade: true,
+                                secure: data.use_https,
+                                rejectUnauthorized: false  // Allow self-signed certificates
+                            };
+                            
+                            socket = io(socketUrl, socketOptions);
+                            
+                            socket.on('connect', function() {
+                                console.log(`WebSocket connected to target server using ${protocol.toUpperCase()}`);
+                                addOutputLine(`🔒 Secure WebSocket connection established (${protocol.toUpperCase()})`, 'info');
+                            });
+                            
+                            socket.on('disconnect', function() {
+                                console.log('WebSocket disconnected from target server');
+                                addOutputLine('WebSocket disconnected from target server', 'warning');
+                            });
+                            
+                            socket.on('stream_data', function(data) {
+                                handleStreamData(data);
+                            });
+                            
+                            socket.on('error', function(error) {
+                                console.error('WebSocket error:', error);
+                                addOutputLine(`WebSocket error: ${error.message || 'Connection failed'}`, 'error');
+                            });
+                            
+                            socket.on('connect_error', function(error) {
+                                console.error('WebSocket connection error:', error);
+                                addOutputLine('WebSocket connection failed - using polling fallback', 'warning');
+                            });
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Failed to get target info:', error);
+                        addOutputLine('Failed to connect WebSocket - using polling fallback', 'info');
+                    });
+                
+            } catch (error) {
+                console.error('Failed to initialize WebSocket:', error);
+            }
+        }
+        
+        async function checkConnection() {
+            try {
+                const response = await fetch('/api/health');
+                const data = await response.json();
+                
+                if (data.connected) {
+                    connected = true;
+                    document.getElementById('statusDiv').className = 'status connected';
+                    document.getElementById('statusDiv').innerHTML = 'Connected to: ' + data.target_info;
+                    
+                    // Initialize WebSocket connection
+                    if (!socket) {
+                        initializeSocket();
+                    }
+                    
+                    // Check server status
+                    checkServerStatus();
+                    
+                    // Get and show system info
+                    getSystemInfo();
+                } else {
+                    connected = false;
+                    document.getElementById('statusDiv').className = 'status disconnected';
+                    document.getElementById('statusDiv').innerHTML = 'Disconnected - ' + (data.error || 'Unknown error') + '<br>Make sure the server.py is running on the target machine.';
+                    document.getElementById('executeBtn').disabled = true;
+                }
+            } catch (error) {
+                connected = false;
+                document.getElementById('statusDiv').className = 'status disconnected';
+                document.getElementById('statusDiv').innerHTML = 'Client server not running<br>Make sure this client.py is running properly.';
+                document.getElementById('executeBtn').disabled = true;
+            }
+        }
+        
+        async function checkServerStatus() {
+            try {
+                const response = await fetch('/api/server_status');
+                const data = await response.json();
+                
+                serverBusy = data.busy || false;
+                
+                if (serverBusy) {
+                    document.getElementById('executeBtn').disabled = true;
+                } else {
+                    document.getElementById('executeBtn').disabled = false;
+                }
+                
+            } catch (error) {
+                console.warn('Could not check server status:', error);
+                serverBusy = false;
+                document.getElementById('executeBtn').disabled = false;
+            }
+        }
+        
+        async function getSystemInfo() {
+            try {
+                const response = await fetch('/api/system_info');
+                const data = await response.json();
+                
+                if (data.success) {
+                    document.getElementById('sysInfoContent').textContent = JSON.stringify(data.info, null, 2);
+                    document.getElementById('systemInfo').style.display = 'block';
+                }
+            } catch (error) {
+                console.error('Error getting system info:', error);
+            }
+        }
+        
+        function setCommand(cmd) {
+            document.getElementById('commandInput').value = cmd;
+        }
+        
+        function addToHistory(command) {
+            if (commandHistory.indexOf(command) === -1) {
+                commandHistory.unshift(command);
+                if (commandHistory.length > 10) {
+                    commandHistory = commandHistory.slice(0, 10);
+                }
+                updateHistoryDisplay();
+            }
+        }
+        
+        function updateHistoryDisplay() {
+            const historyDiv = document.getElementById('historyList');
+            historyDiv.innerHTML = '';
+            
+            commandHistory.forEach(cmd => {
+                const item = document.createElement('div');
+                item.className = 'history-item';
+                item.textContent = cmd;
+                item.onclick = () => setCommand(cmd);
+                historyDiv.appendChild(item);
+            });
+            
+            if (commandHistory.length > 0) {
+                document.getElementById('commandHistory').style.display = 'block';
+            }
+        }
+        
+        function addOutputLine(content, type = 'normal') {
+            const container = document.getElementById('outputContainer');
+            const line = document.createElement('div');
+            line.className = `output-line ${type}`;
+            
+            // Handle empty content properly
+            if (content === undefined || content === null) {
+                line.innerHTML = '&nbsp;'; // Use non-breaking space for empty lines
+            } else {
+                line.textContent = content;
+            }
+            
+            container.appendChild(line);
+            container.scrollTop = container.scrollHeight;
+        }
+        
+        function clearOutput() {
+            const container = document.getElementById('outputContainer');
+            container.innerHTML = '<div class="output-line info">Terminal cleared - Ready to execute commands...</div>';
+        }
+        
+        function setCommandStatus(status, type = 'info') {
+            const statusSpan = document.getElementById('commandStatus');
+            statusSpan.className = `status-indicator status-${type}`;
+            statusSpan.textContent = status;
+        }
+        
+        function handleEnterKey() {
+            // Check if execute button is disabled (command running or not connected)
+            const executeBtn = document.getElementById('executeBtn');
+            if (executeBtn.disabled) {
+                return; // Don't execute if button is disabled
+            }
+            executeCommand();
+        }
+        
+        async function executeCommand() {
+            if (!connected) {
+                alert('Not connected to target server!');
+                return;
+            }
+            
+            const command = document.getElementById('commandInput').value.trim();
+            if (!command) {
+                alert('Please enter a command!');
+                return;
+            }
+            
+            // Add to history
+            addToHistory(command);
+            
+            // Clear the input field like in a real terminal
+            document.getElementById('commandInput').value = '';
+            
+            // Don't clear previous output - maintain terminal history
+            
+            // Update UI state
+            document.getElementById('executeBtn').disabled = true;
+            document.getElementById('stopBtn').disabled = false;
+            setCommandStatus('Starting...', 'running');
+            
+            // Add command prompt to output (like in a real terminal)
+            addOutputLine(`$ ${command}`, 'info');
+            
+            try {
+                // Start command execution
+                const response = await fetch('/api/execute', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ command: command })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    currentProcessId = result.process_id;
+                    setCommandStatus('Running...', 'running');
+                    
+                    // Start streaming output
+                    startStreaming(result.process_id);
+                } else {
+                    addOutputLine(`Error: ${result.error}`, 'error');
+                    addOutputLine(``, 'normal'); // Add blank line for separation
+                    resetUI();
+                }
+                
+            } catch (error) {
+                addOutputLine(`Connection Error: ${error.message}`, 'error');
+                addOutputLine(``, 'normal'); // Add blank line for separation
+                resetUI();
+            }
+        }
+        
+        function startStreaming(processId) {
+            if (!socket || !socket.connected) {
+                console.warn('WebSocket not connected, falling back to polling');
+                addOutputLine('WebSocket not available, using polling mode...', 'info');
+                startPolling(processId);
+                return;
+            }
+            
+            // Send WebSocket message to start streaming
+            socket.emit('start_streaming', { process_id: processId });
+        }
+        
+        function startPolling(processId) {
+            // Fallback polling method
+            let lastOutputLength = 0;
+            
+            const poll = async () => {
+                try {
+                    const response = await fetch(`/api/poll/${processId}`);
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        // Show new output
+                        const output = data.output || '';
+                        const newOutput = output.slice(lastOutputLength);
+                        
+                        if (newOutput) {
+                            const lines = newOutput.split('\\n');
+                            lines.forEach(line => {
+                                if (line.trim()) {
+                                    addOutputLine(line);
+                                }
+                            });
+                            lastOutputLength = output.length;
+                        }
+                        
+                        if (data.complete) {
+                            handleStreamData({
+                                type: 'complete',
+                                exit_code: data.exit_code
+                            });
+                            return;
+                        }
+                        
+                        // Continue polling
+                        setTimeout(poll, 500);
+                    } else {
+                        handleStreamData({
+                            type: 'error',
+                            content: data.error || 'Polling failed'
+                        });
+                    }
+                } catch (error) {
+                    handleStreamData({
+                        type: 'error',
+                        content: `Polling error: ${error.message}`
+                    });
+                }
+            };
+            
+            poll();
+        }
+        
+        function handleStreamData(data) {
+            switch(data.type) {
+                case 'start':
+                    // Don't add extra "Command started" message as we already show the $ prompt
+                    break;
+                    
+                case 'output':
+                    addOutputLine(data.content);
+                    break;
+                    
+                case 'complete':
+                    addOutputLine(``, 'normal'); // Add blank line
+                    addOutputLine(`[Command completed with exit code: ${data.exit_code}]`, 'success');
+                    addOutputLine(``, 'normal'); // Add blank line for separation
+                    setCommandStatus('Complete', 'complete');
+                    
+                    resetUI();
+                    break;
+                    
+                case 'error':
+                    addOutputLine(`Error: ${data.content}`, 'error');
+                    addOutputLine(``, 'normal'); // Add blank line for separation
+                    setCommandStatus('Error', 'stopped');
+                    resetUI();
+                    break;
+                    
+                case 'input_request':
+                    addOutputLine(`${data.content}`, 'info');
+                    showInputPrompt();
+                    break;
+                    
+                case 'heartbeat':
+                    // Just keep connection alive
+                    break;
+                    
+                default:
+                    // Handle unknown types gracefully
+                    break;
+            }
+        }
+        
+        async function stopCommand() {
+            if (!currentProcessId) {
+                return;
+            }
+            
+            // Show confirmation modal instead of directly stopping
+            showConfirmModal();
+        }
+        
+        function showConfirmModal() {
+            document.getElementById('confirmModal').style.display = 'block';
+        }
+        
+        function hideConfirmModal() {
+            document.getElementById('confirmModal').style.display = 'none';
+        }
+        
+        async function confirmStopCommand() {
+            // Hide the modal first
+            hideConfirmModal();
+            
+            if (!currentProcessId) {
+                return;
+            }
+            
+            setCommandStatus('Stopping...', 'running');
+            
+            try {
+                const response = await fetch(`/api/stop/${currentProcessId}`, {
+                    method: 'POST'
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    addOutputLine(``, 'normal'); // Add blank line
+                    addOutputLine(`${result.message}`, 'error');
+                    addOutputLine(``, 'normal'); // Add blank line for separation
+                    setCommandStatus('Stopped', 'stopped');
+                } else {
+                    addOutputLine(``, 'normal'); // Add blank line
+                    addOutputLine(`Error stopping: ${result.error}`, 'error');
+                    addOutputLine(``, 'normal'); // Add blank line for separation
+                }
+                
+            } catch (error) {
+                addOutputLine(``, 'normal'); // Add blank line
+                addOutputLine(`Error stopping command: ${error.message}`, 'error');
+                addOutputLine(``, 'normal'); // Add blank line for separation
+            }
+            
+            resetUI();
+        }
+        
+        function resetUI() {
+            document.getElementById('executeBtn').disabled = false;
+            document.getElementById('stopBtn').disabled = true;
+            currentProcessId = null;
+            
+            // Hide input section when resetting UI
+            hideInputPrompt();
+        }
+        
+        function showInputPrompt() {
+            document.getElementById('inputSection').style.display = 'block';
+            document.getElementById('interactiveInput').focus();
+        }
+        
+        function hideInputPrompt() {
+            document.getElementById('inputSection').style.display = 'none';
+            document.getElementById('interactiveInput').value = '';
+        }
+        
+        async function sendInput() {
+            const inputField = document.getElementById('interactiveInput');
+            const inputText = inputField.value;
+            
+            if (!inputText.trim()) {
+                return;
+            }
+            
+            if (!currentProcessId) {
+                addOutputLine('No active command to send input to', 'error');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/input/${currentProcessId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ input: inputText })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    addOutputLine(`> ${inputText}`, 'info');
+                    hideInputPrompt();
+                } else {
+                    addOutputLine(`Error sending input: ${result.error}`, 'error');
+                }
+                
+            } catch (error) {
+                addOutputLine(`Error sending input: ${error.message}`, 'error');
+            }
+        }
+        
+        // Check connection and server status every 3 seconds
+        setInterval(() => {
+            checkConnection();
+            if (connected && !currentProcessId) {
+                checkServerStatus();
+            }
+        }, 3000);
+        
+        checkConnection();
+        
+        // Handle page unload
+        window.addEventListener('beforeunload', function() {
+            if (socket) {
+                socket.disconnect();
+            }
+        });
+        
+        // Close modal when clicking outside of it
+        window.addEventListener('click', function(event) {
+            const modal = document.getElementById('confirmModal');
+            if (event.target === modal) {
+                hideConfirmModal();
+            }
+        });
+    </script>
+    
+    <!-- Confirmation Modal -->
+    <div id="confirmModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Confirm Stop</h3>
+            </div>
+            <div class="modal-body">
+                Are you sure you want to stop the current command execution?
+                <br><br>
+                This action cannot be undone.
+            </div>
+            <div class="modal-footer">
+                <button class="modal-btn modal-btn-cancel" onclick="hideConfirmModal()">Cancel</button>
+                <button class="modal-btn modal-btn-confirm" onclick="confirmStopCommand()">Stop Command</button>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
