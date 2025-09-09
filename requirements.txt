@@ -12,5 +12,11 @@ urllib3>=1.26.0
 # Additional dependencies for WebSocket client
 eventlet>=0.31.0
 
+# WebSocket client for vmclientv2 and Host_serverv2
+websockets>=10.0
+
+# Flask for Host client web interface
+flask>=2.0.0
+
 # Optional: For better performance
 gunicorn>=20.0.0

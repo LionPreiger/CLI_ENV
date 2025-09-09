@@ -39,7 +39,8 @@ def main():
             "python-socketio>=5.0.0",
             "cryptography>=3.4.0",
             "urllib3>=1.26.0",
-            "eventlet>=0.31.0"
+            "eventlet>=0.31.0",
+            "websockets>=10.0"
         ]
         
         failed_packages = []
@@ -67,8 +68,15 @@ def main():
     print("  - Self-signed certificate generation")
     print("  - SSL certificate validation options")
     print("\n📋 Usage:")
-    print("  Server: python VM_client.py")
-    print("  Client: python Host_server.py")
+    print("  Original Server: python VM_client.py")
+    print("  Original Client: python Host_server.py")
+    print("  New VM Client v2: python vmclientv2.py [vm_id]")
+    print("\n🆕 New VM Client v2 Features:")
+    print("  - Connects to external WebSocket server")
+    print("  - Endpoint: 217.154.254.231:9000/api/vm/{vmid}/ws")
+    print("  - Automatic VM ID generation if not provided")
+    print("  - Auto-reconnection on connection loss")
+    print("  - Real-time command execution streaming")
     print("\n⚠️  Note: When using HTTPS with self-signed certificates,")
     print("   browsers may show security warnings. This is normal")
     print("   and safe for trusted networks.")
