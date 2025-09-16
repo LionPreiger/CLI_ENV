@@ -29,6 +29,11 @@ class StreamingCommandExecutor:
     """Enhanced command executor with streaming support"""
     
     def __init__(self):
+        """Initializes the StreamingCommandExecutor.
+
+        This sets up the list of allowed commands for security and initializes
+        dictionaries to track running processes and their outputs.
+        """
         self.allowed_commands = [
             'python', 'python3', 'pip', 'pip3', 'dir', 'ls', 'echo', 'whoami', 'date', 
             'ipconfig', 'ifconfig', 'ping', 'curl', 'wget', 'git', 'cat', 'head', 'tail',
@@ -39,7 +44,16 @@ class StreamingCommandExecutor:
         self.process_outputs: Dict[str, Dict] = {}
     
     def is_safe_command(self, command: str) -> bool:
-        """Basic safety check for commands"""
+        """Checks if a command is safe to execute.
+
+        Performs a basic security check to prevent execution of dangerous commands.
+
+        Args:
+            command (str): The command string to check.
+
+        Returns:
+            bool: True if the command is considered safe, False otherwise.
+        """
         cmd_parts = command.strip().split()
         if not cmd_parts:
             return False
@@ -54,7 +68,22 @@ class StreamingCommandExecutor:
         return True
     
     def execute_command_streaming(self, command: str, process_id: str, output_callback=None):
-        """Execute command with streaming output"""
+        """Executes a command and streams its output in a separate thread.
+
+        It handles both PTY-based execution for interactive commands on Linux/macOS
+        and standard subprocess for other cases.
+
+        Args:
+            command (str): The command to execute.
+            process_id (str): A unique ID for tracking the process.
+            output_callback (callable, optional): A callback function to handle
+                real-time output. It receives message type and content.
+                Defaults to None.
+
+        Returns:
+            tuple[bool, str]: A tuple containing a boolean indicating success
+            and either the process_id or an error message.
+        """
         if not self.is_safe_command(command):
             return False, "Command not allowed for security reasons"
 
@@ -373,7 +402,18 @@ class StreamingCommandExecutor:
             return False, f"Error starting command: {str(e)}"
     
     def stop_command(self, process_id: str):
-        """Stop a running command"""
+        """Stops a running command.
+
+        Terminates the process with the given process_id. It first tries to
+        terminate gracefully, then kills it if necessary.
+
+        Args:
+            process_id (str): The ID of the process to stop.
+
+        Returns:
+            tuple[bool, str]: A tuple containing a boolean indicating success
+            and a confirmation or error message.
+        """
         if process_id in self.running_processes:
             try:
                 process = self.running_processes[process_id]
@@ -394,7 +434,19 @@ class StreamingCommandExecutor:
             return False, "Process not found or already completed"
     
     def send_input(self, process_id: str, input_text: str):
-        """Send input to a running process"""
+        """Sends input to a running process.
+
+        This is used to provide input to commands that are waiting for it,
+        such as password prompts or interactive scripts.
+
+        Args:
+            process_id (str): The ID of the process to send input to.
+            input_text (str): The text to send to the process's stdin.
+
+        Returns:
+            tuple[bool, str]: A tuple containing a boolean indicating success
+            and a confirmation or error message.
+        """
         logger.info(f"Attempting to send input '{input_text}' to process {process_id}")
         
         if process_id in self.running_processes:
@@ -473,6 +525,12 @@ class VMWebSocketClient:
     """WebSocket client that connects to external server"""
     
     def __init__(self, server_url: str, vm_id: str):
+        """Initializes the VMWebSocketClient.
+
+        Args:
+            server_url (str): The base URL of the WebSocket server.
+            vm_id (str): The unique identifier for this VM client.
+        """
         self.server_url = server_url
         self.vm_id = vm_id
         self.websocket = None
@@ -487,7 +545,14 @@ class VMWebSocketClient:
         self.last_input_request_command = None  # Track the last command that requested input
         
     async def connect(self):
-        """Connect to the WebSocket server"""
+        """Connects to the WebSocket server and sends an initial status message.
+
+        It constructs the full WebSocket URL, establishes the connection,
+        and sends a connection message with system information.
+
+        Returns:
+            bool: True if the connection was successful, False otherwise.
+        """
         try:
             # Initialize the message queue when event loop is available
             if self.message_queue is None:
@@ -533,14 +598,21 @@ class VMWebSocketClient:
             return False
     
     async def disconnect(self):
-        """Disconnect from the WebSocket server"""
+        """Disconnects from the WebSocket server.
+
+        Sets the running flag to False and closes the WebSocket connection if it's open.
+        """
         self.running = False
         if self.websocket:
             await self.websocket.close()
             logger.info("Disconnected from server")
     
     async def send_message(self, message: Dict[str, Any]):
-        """Send a message to the server"""
+        """Sends a JSON-formatted message to the server.
+
+        Args:
+            message (Dict[str, Any]): The message dictionary to send.
+        """
         if self.websocket:
             try:
                 await self.websocket.send(json.dumps(message))
@@ -548,14 +620,27 @@ class VMWebSocketClient:
                 logger.error(f"Failed to send message: {e}")
     
     async def send_response(self, response_data: Dict[str, Any], request_id: str = None):
-        """Send a response to the server with optional request_id"""
+        """Sends a response message to the server, including the original request_id.
+
+        Args:
+            response_data (Dict[str, Any]): The response data to send.
+            request_id (str, optional): The ID of the request this is a response to.
+                Defaults to None.
+        """
         if request_id:
             response_data["request_id"] = request_id
         
         await self.send_message(response_data)
     
     async def handle_message(self, message: str):
-        """Handle incoming messages from the server"""
+        """Handles an incoming message from the server.
+
+        It parses the message, determines its format (new vs. old, JSON vs. plain text),
+        and routes it to the appropriate handler.
+
+        Args:
+            message (str): The raw message string received from the server.
+        """
         try:
             # Try to parse as JSON first
             data = json.loads(message)
@@ -601,7 +686,15 @@ class VMWebSocketClient:
             logger.error(f"Error handling message: {e}")
     
     async def handle_new_format_message(self, data: dict, request_id: str = None):
-        """Handle messages in the new format: {message, type, metadata}"""
+        """Handles messages conforming to the new {message, type, metadata} format.
+
+        It routes messages to specific handlers based on their `type` field.
+
+        Args:
+            data (dict): The parsed JSON data of the message.
+            request_id (str, optional): The request_id from the message, if any.
+                Defaults to None.
+        """
         message_content = data.get("message", "")
         message_type = data.get("type", "")
         metadata = data.get("metadata", {})
@@ -688,7 +781,14 @@ class VMWebSocketClient:
                 }, request_id)
     
     async def send_status_update(self, request_id: str = None):
-        """Send current VM status to server"""
+        """Sends a detailed status update to the server.
+
+        This includes VM status, number of active processes, system info, and uptime.
+
+        Args:
+            request_id (str, optional): The request_id if this is a response to a
+                status request. Defaults to None.
+        """
         response_data = {
             "type": "status_response", 
             "vm_id": self.vm_id,
@@ -707,7 +807,14 @@ class VMWebSocketClient:
             await self.send_message(response_data)
     
     async def handle_plain_text_message(self, message: str):
-        """Handle plain text messages that might contain commands"""
+        """Handles plain text messages that might be simple commands.
+
+        This provides backward compatibility for simple command execution formats
+        like "EXECUTE: command".
+
+        Args:
+            message (str): The plain text message from the server.
+        """
         logger.info(f"Received plain text: {message}")
         
         # Check if it's a command in plain text format
@@ -728,7 +835,17 @@ class VMWebSocketClient:
             logger.info(f"Plain text message from server: {message}")
     
     async def handle_command(self, data: Dict[str, Any], request_id: str = None):
-        """Handle command execution request"""
+        """Handles a command execution request.
+
+        It initiates the command execution via the StreamingCommandExecutor and
+        sets up a callback to handle the output.
+
+        Args:
+            data (Dict[str, Any]): The command request data, containing the command
+                and a command_id.
+            request_id (str, optional): The request_id for the entire interaction.
+                Defaults to None.
+        """
         command = data.get("command", "")
         command_id = data.get("command_id", str(uuid.uuid4()))
         
@@ -925,7 +1042,12 @@ class VMWebSocketClient:
             }, request_id)
     
     async def handle_stop_command(self, data: Dict[str, Any], request_id: str = None):
-        """Handle stop command request"""
+        """Handles a request to stop a running command.
+
+        Args:
+            data (Dict[str, Any]): The request data, containing the command_id to stop.
+            request_id (str, optional): The request_id for the response. Defaults to None.
+        """
         command_id = data.get("command_id", "")
         
         if not command_id:
@@ -954,7 +1076,16 @@ class VMWebSocketClient:
         }, request_id)
     
     async def handle_send_input(self, data: Dict[str, Any], request_id: str = None):
-        """Handle send input request"""
+        """Handles a request to send input to a running process.
+
+        After sending the input, it waits for the process to either request more
+        input or complete, then sends an appropriate response.
+
+        Args:
+            data (Dict[str, Any]): The request data, containing the command_id and
+                the input text.
+            request_id (str, optional): The request_id for the response. Defaults to None.
+        """
         command_id = data.get("command_id", "")
         input_text = data.get("input", "")
         
@@ -1132,7 +1263,12 @@ class VMWebSocketClient:
             }, request_id)
     
     def get_system_info(self):
-        """Get basic system information"""
+        """Gets basic system information.
+
+        Returns:
+            dict: A dictionary containing hostname, system, platform, Python version,
+            and current working directory.
+        """
         try:
             return {
                 'hostname': platform.node(),
@@ -1145,7 +1281,11 @@ class VMWebSocketClient:
             return {'error': f'Error getting system info: {str(e)}'}
     
     async def listen(self):
-        """Listen for messages from the server"""
+        """Listens for incoming messages from the server in a loop.
+
+        It also manages background tasks for sending heartbeats and processing
+        the message queue.
+        """
         try:
             # Start heartbeat task
             heartbeat_task = asyncio.create_task(self.send_heartbeat())
@@ -1174,7 +1314,11 @@ class VMWebSocketClient:
                 message_processor_task.cancel()
     
     async def process_message_queue(self):
-        """Process messages from the thread-safe queue"""
+        """Processes and sends messages from the internal thread-safe queue.
+
+        This allows other threads (like the command output callback) to safely
+        queue messages to be sent on the main asyncio event loop.
+        """
         while self.running:
             try:
                 # Check if queue is available
@@ -1194,7 +1338,8 @@ class VMWebSocketClient:
                 logger.error(f"Error processing message queue: {e}")
     
     async def send_heartbeat(self):
-        """Send periodic heartbeat to server"""
+        """Sends a periodic heartbeat message to the server to keep the connection alive.
+        """
         while self.running:
             try:
                 await asyncio.sleep(30)  # Send heartbeat every 30 seconds
@@ -1215,7 +1360,11 @@ class VMWebSocketClient:
                 break
     
     async def run_with_reconnect(self):
-        """Run the client with automatic reconnection"""
+        """Runs the client and automatically handles reconnection.
+
+        If the connection is lost, it will attempt to reconnect a configured
+        number of times with a delay.
+        """
         while True:
             try:
                 if await self.connect():
@@ -1240,7 +1389,11 @@ class VMWebSocketClient:
 
 
 async def main():
-    """Main function"""
+    """Main entry point for the VM client.
+
+    It parses command-line arguments for the VM ID, initializes the client,
+    and runs it with reconnection logic.
+    """
     print("=" * 50)
     print("VM WebSocket Client v2 Starting...")
     print("=" * 50)
