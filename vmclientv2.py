@@ -1405,17 +1405,40 @@ async def main():
     if len(sys.argv) > 1:
         vm_id = sys.argv[1]
     else:
-        # Generate a unique VM ID based on hostname and MAC address
-        import socket
-        hostname = socket.gethostname()
-        try:
-            # Try to get MAC address
-            import uuid as uuid_lib
-            mac = ':'.join(['{:02x}'.format((uuid_lib.getnode() >> elements) & 0xff) 
-                           for elements in range(0,2*6,2)][::-1])
-            vm_id = f"{hostname}-{mac}"
-        except:
-            vm_id = f"{hostname}-{str(uuid.uuid4())[:8]}"
+        # Try to load VM ID from file first
+        vm_id_file = "vm_id.txt"
+        vm_id = None
+        
+        if os.path.exists(vm_id_file):
+            try:
+                with open(vm_id_file, 'r') as f:
+                    vm_id = f.read().strip()
+                    if vm_id:
+                        print(f"Loaded VM ID from file: {vm_id}")
+            except Exception as e:
+                print(f"Error reading VM ID file: {e}")
+        
+        if not vm_id:
+            # Generate a unique VM ID based on hostname and MAC address
+            import socket
+            hostname = socket.gethostname()
+            try:
+                # Try to get MAC address
+                import uuid as uuid_lib
+                mac_int = uuid_lib.getnode()
+                mac = ':'.join(['{:02x}'.format((mac_int >> elements) & 0xff) 
+                               for elements in range(0, 48, 8)][::-1])
+                vm_id = f"{hostname}-{mac}"
+            except:
+                vm_id = f"{hostname}-{str(uuid.uuid4())[:8]}"
+            
+            # Save VM ID to file for future use
+            try:
+                with open(vm_id_file, 'w') as f:
+                    f.write(vm_id)
+                print(f"Saved VM ID to file: {vm_id}")
+            except Exception as e:
+                print(f"Error saving VM ID file: {e}")
     
     print(f"VM ID: {vm_id}")
     print(f"Connecting to: {SERVER_URL}")
