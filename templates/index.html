@@ -581,7 +581,7 @@
             } catch (error) {
                 connected = false;
                 document.getElementById('statusDiv').className = 'status disconnected';
-                document.getElementById('statusDiv').innerHTML = 'Client server not running<br>Make sure this Host_server.py is running properly.';
+                document.getElementById('statusDiv').innerHTML = 'Host server not running or not responding.<br>Make sure <b>host_serverv3.py</b> and <b>vmclientv3.py</b> are running.<br>Check the VM Stream Viewer below for live data.';
                 document.getElementById('executeBtn').disabled = true;
             }
         }
@@ -1030,5 +1030,78 @@
             </div>
         </div>
     </div>
+
+<!-- VM Stream Viewer -->
+
+<div class="container" style="margin-top:40px;">
+    <h2>VM Stream Viewer</h2>
+    <div id="terminal" style="background:#181818;color:#e0e0e0;font-family:monospace;font-size:1.1em;padding:1em;border-radius:8px;min-height:300px;max-height:400px;overflow-y:auto;">
+        <span style="color:#888;">Loading...</span>
+    </div>
+</div>
+<script>
+    function escapeHtml(text) {
+        return text.replace(/[&<>"']/g, function(m) {
+            return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[m]);
+        });
+    }
+    let lastUpdateTime = 0;
+    
+    async function fetchStream() {
+        const res = await fetch('/api/stream');
+        const data = await res.json();
+        const termDiv = document.getElementById('terminal');
+        if (!data.stream || data.stream.length === 0) {
+            termDiv.innerHTML = '<span style="color:#888;">No stream data yet.</span>';
+            return;
+        }
+        
+        // Only process new messages (after lastUpdateTime)
+        const newMessages = data.stream.filter(entry => 
+            (entry.timestamp || 0) > lastUpdateTime
+        );
+        
+        if (newMessages.length === 0) {
+            return; // No new messages
+        }
+        
+        // Update lastUpdateTime to the latest message
+        if (newMessages.length > 0) {
+            lastUpdateTime = Math.max(...newMessages.map(m => m.timestamp || 0));
+        }
+        
+        // Sort new messages by timestamp
+        newMessages.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+        
+        // Append new messages to existing content
+        let output = termDiv.innerHTML;
+        if (output.includes('No stream data yet')) {
+            output = '';
+        }
+        
+        newMessages.forEach(entry => {
+            let msg = entry.message || '';
+            let type = entry.type || '';
+            
+            if (type === 'command') {
+                output += `<div><span style='color:#6cf;'>server send:</span> <span style='color:#fff;'>${escapeHtml(msg)}</span></div>`;
+            } else if (type === 'output') {
+                // Only show non-empty output
+                if (msg.trim()) {
+                    output += `<div><span style='color:#e0e0e0;'>vm answer:</span> <span>${escapeHtml(msg)}</span></div>`;
+                }
+            } else if (type === 'input_request') {
+                output += `<div><span style='color:#ff0;'>${escapeHtml(msg)}</span></div>`;
+            } else if (type === 'input_sent') {
+                output += `<div><span style='color:#0f0;'>user input:</span> <span style='color:#fff;'>${escapeHtml(msg)}</span></div>`;
+            }
+        });
+        
+        termDiv.innerHTML = output;
+        termDiv.scrollTop = termDiv.scrollHeight;
+    }
+    setInterval(fetchStream, 1000);
+    fetchStream();
+</script>
 </body>
 </html>
